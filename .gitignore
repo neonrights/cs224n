@@ -1,5 +1,6 @@
 *.pyc
 */data/*
-assignment3/results/*
+*/results/*
+*/utils/*
 *.npy
 *.pkl
