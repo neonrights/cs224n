@@ -24,6 +24,7 @@ from model import Model
 
 from q3_gru_cell import GRUCell
 from q2_rnn_cell import RNNCell
+import pdb
 
 matplotlib.use('TkAgg')
 logger = logging.getLogger("hw3.q3")
@@ -54,9 +55,7 @@ class SequencePredictor(Model):
         """Creates the feed_dict for the model.
         NOTE: You do not have to do anything here.
         """
-        feed_dict = {
-            self.inputs_placeholder: inputs_batch,
-            }
+        feed_dict = { self.inputs_placeholder : inputs_batch }
         if labels_batch is not None:
             feed_dict[self.labels_placeholder] = labels_batch
         return feed_dict
@@ -87,7 +86,7 @@ class SequencePredictor(Model):
 
         x = self.inputs_placeholder
         ### YOUR CODE HERE (~2-3 lines)
-        _, state = tf.nn.dynamic_rnn(cell, x)
+        _, state = tf.nn.dynamic_rnn(cell, x, dtype=tf.float32)
         preds = tf.sigmoid(state)
         ### END YOUR CODE
 
@@ -110,7 +109,7 @@ class SequencePredictor(Model):
         y = self.labels_placeholder
 
         ### YOUR CODE HERE (~1-2 lines)
-        loss = tf.reduce_mean(tf.nn.l2_loss(preds - self.labels_placeholder))
+        loss = tf.reduce_mean(tf.nn.l2_loss(preds - y))
         ### END YOUR CODE
 
         return loss
@@ -144,15 +143,15 @@ class SequencePredictor(Model):
         optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.config.lr)
 
         ### YOUR CODE HERE (~6-10 lines)
-        gradients = optimizer.compute_gradients(loss)
-        # - Remember to clip gradients only if self.config.clip_gradients
-        # is True.
-        # - Remember to set self.grad_norm
-        self.grad_norm = tf.global_norm(gradients)
+        grad_var_pairs = optimizer.compute_gradients(loss)
+        self.grad_norm = tf.global_norm(grad_var_pairs)
         if self.config.clip_gradients:
-            gradients = [(tf.clip_by_global_norm(grad, self.config.max_grad_norm), var) for grad, var in gradients]
-            
-        train_op = optimizer.apply_gradients(gradients)
+            gradients = [grad for grad, var in grad_var_pairs]
+            variables = [var for grad, var in grad_var_pairs]
+            gradients, self.grad_norm = tf.clip_by_global_norm(gradients, self.config.max_grad_norm)
+            grad_var_pairs = [(grad, var) for grad, var in zip(gradients, variables)]
+        
+        train_op = optimizer.apply_gradients(grad_var_pairs)
         ### END YOUR CODE
 
         assert self.grad_norm is not None, "grad_norm was not set properly!"
